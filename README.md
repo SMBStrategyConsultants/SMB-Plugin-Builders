@@ -12,7 +12,12 @@ It is **not** part of `smb-skills-marketplace` (the other SMB Strategy Consultan
 
 ## Installing
 
-Add this marketplace and enable the plugin the same way you'd enable any Claude Code plugin — via `extraKnownMarketplaces` and `enabledPlugins` in your `.claude/settings.json`, or via the in-app plugin browser once this repo has a remote.
+```
+claude plugin marketplace add SMBStrategyConsultants/SMB-Plugin-Builders
+claude plugin install engineering-standards@build-team-standards --scope project
+```
+
+`--scope project` keeps the install local to the current workspace. A hand-written `extraKnownMarketplaces`/`enabledPlugins` block in `.claude/settings.json` alone is **not** enough — it registers the marketplace but does not fetch an external-source plugin, so the hooks never actually load, with no error surfaced. Verified against real Claude Code behavior, not assumed. Restart Claude Code after installing (`/clear` doesn't reload plugin config — it only resets the conversation).
 
 **Add `.agent/tmp/` to your project's own `.gitignore`.** The review-gate and context-nag hooks write session state (an audit log of review clears/waivers, per-session edit tracking) to `<your project>/.agent/tmp/code-review/` — inside the repo you're building, not inside this plugin. Without an ignore rule, `git add -A` picks it up and reviewer verdict text/waiver reasons end up committed.
 
