@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ANCHOR: secret-read-guard | role: Hook | refs: aws-destructive-guard, protected-files-guard
+# ANCHOR: secret-read-guard | role: Hook | refs: destructive-command-guard, protected-files-guard
 #
 # PreToolUse guard: commands that PRINT SECRET VALUES to stdout are denied.
 #
@@ -21,6 +21,18 @@
 # a script file that reads secrets internally, will not match. Reads of secrets
 # into a file the agent never prints are also invisible here. Verification by
 # BEHAVIOUR (does the app work?) remains the standard.
+#
+# ALL grep matching below uses a herestring (`grep ... <<< "$var"`), never a
+# `printf | grep` pipe — same reason as destructive-command-guard.sh: `grep -q`
+# exits the instant it matches, and under `set -o pipefail` a producer killed
+# by the resulting SIGPIPE reports a NON-ZERO pipeline status even though grep
+# itself matched. Here that silently turns a `deny` into an allow — found
+# 2026-08-27 as the sibling of the same bug in destructive-command-guard.sh,
+# reachable the same way (a secret-reading command followed by enough trailing
+# text in the same Bash call — measured: as little as ~32KB for some patterns
+# here, since the pipeline is one stage shorter than the destructive guard's).
+# A herestring has no concurrent producer process to kill, so exiting early
+# costs nothing.
 set -uo pipefail
 
 payload="$(cat)"
@@ -35,7 +47,9 @@ cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null
 [ -z "$cmd" ] && exit 0
 
 # Strip heredoc bodies so a secret-shaped string inside a commit message or a
-# document being written does not trip the matcher. Same helper the AWS guard uses.
+# document being written does not trip the matcher. Same helper the
+# destructive-command guard uses. (awk reads its whole input before producing
+# output — no early-exit, so no SIGPIPE risk from this particular pipe.)
 STRIPPER="$(dirname "${BASH_SOURCE[0]}")/strip-heredocs.awk"
 if [ -f "$STRIPPER" ]; then
   scan="$(printf '%s' "$cmd" | awk -f "$STRIPPER" 2>/dev/null || printf '%s' "$cmd")"
@@ -46,7 +60,8 @@ fi
 # Blank the payload of message-bearing flags. Documenting this rule must not trip
 # it: `git commit -m "never run cat .env"` is prose about a command, not the
 # command. Only the quoted argument to -m/--message/--body is blanked, so a real
-# read with a quoted path (cat "/srv/.env") still matches.
+# read with a quoted path (cat "/srv/.env") still matches. (sed processes its
+# whole input before producing output — no early-exit, no SIGPIPE risk.)
 scan="$(printf '%s' "$scan" | sed -E \
   -e "s/(-m|--message|--body|--title|--description)([[:space:]]+|=)'[^']*'/\1 ''/g" \
   -e "s/(-m|--message|--body|--title|--description)([[:space:]]+|=)\"[^\"]*\"/\1 \"\"/g")"
@@ -78,37 +93,37 @@ If you genuinely need a value to complete a task, STOP and ask the client. Do no
 # Each pattern targets an invocation that emits VALUES, not names.
 
 # Netlify: `--plain` and `--json` both include values; `env:get` prints one value.
-if printf '%s' "$scan" | grep -qE 'netlify[[:space:]].*env:list[^|]*(--plain|--json)'; then
+if grep -qE 'netlify[[:space:]].*env:list[^|]*(--plain|--json)' <<< "$scan"; then
   # Narrow allowance: name-only reduction on the same command line.
-  if printf '%s' "$scan" | grep -qE "awk[[:space:]]+-F=?[[:space:]]*'?\{?[[:space:]]*print[[:space:]]+\\\$1" ||
-     printf '%s' "$scan" | grep -qE 'cut[[:space:]]+-d=[[:space:]]*-f[[:space:]]*1'; then
+  if grep -qE "awk[[:space:]]+-F=?[[:space:]]*'?\{?[[:space:]]*print[[:space:]]+\\\$1" <<< "$scan" ||
+     grep -qE 'cut[[:space:]]+-d=[[:space:]]*-f[[:space:]]*1' <<< "$scan"; then
     exit 0
   fi
   deny "netlify env:list --plain/--json prints values, not just names" "$CTX"
 fi
-printf '%s' "$scan" | grep -qE 'netlify[[:space:]].*env:get' &&
+grep -qE 'netlify[[:space:]].*env:get' <<< "$scan" &&
   deny "netlify env:get prints a secret value" "$CTX"
 
 # Vercel / Supabase / Heroku / Doppler / Railway
-printf '%s' "$scan" | grep -qE 'vercel[[:space:]].*env[[:space:]]+(pull|ls[^|]*--sensitive)' &&
+grep -qE 'vercel[[:space:]].*env[[:space:]]+(pull|ls[^|]*--sensitive)' <<< "$scan" &&
   deny "vercel env pull/ls --sensitive exposes values" "$CTX"
-printf '%s' "$scan" | grep -qE 'supabase[[:space:]].*secrets[[:space:]]+(list|get)' &&
+grep -qE 'supabase[[:space:]].*secrets[[:space:]]+(list|get)' <<< "$scan" &&
   deny "supabase secrets list/get prints values" "$CTX"
-printf '%s' "$scan" | grep -qE 'heroku[[:space:]]+config(:get)?([[:space:]]|$)' &&
+grep -qE 'heroku[[:space:]]+config(:get)?([[:space:]]|$)' <<< "$scan" &&
   deny "heroku config prints all config values" "$CTX"
-printf '%s' "$scan" | grep -qE 'doppler[[:space:]]+secrets([[:space:]]+(get|download))?([[:space:]]|$)' &&
+grep -qE 'doppler[[:space:]]+secrets([[:space:]]+(get|download))?([[:space:]]|$)' <<< "$scan" &&
   deny "doppler secrets prints values" "$CTX"
-printf '%s' "$scan" | grep -qE 'railway[[:space:]]+variables([[:space:]]|$)' &&
+grep -qE 'railway[[:space:]]+variables([[:space:]]|$)' <<< "$scan" &&
   deny "railway variables prints values" "$CTX"
 
 # Cloud secret stores
-printf '%s' "$scan" | grep -qE 'aws[[:space:]].*secretsmanager[[:space:]].*get-secret-value' &&
+grep -qE 'aws[[:space:]].*secretsmanager[[:space:]].*get-secret-value' <<< "$scan" &&
   deny "aws secretsmanager get-secret-value returns the plaintext secret" "$CTX"
-printf '%s' "$scan" | grep -qE 'aws[[:space:]].*ssm[[:space:]].*get-parameters?[^|]*--with-decryption' &&
+grep -qE 'aws[[:space:]].*ssm[[:space:]].*get-parameters?[^|]*--with-decryption' <<< "$scan" &&
   deny "aws ssm get-parameter --with-decryption returns plaintext" "$CTX"
-printf '%s' "$scan" | grep -qE 'gcloud[[:space:]].*secrets[[:space:]].*versions[[:space:]]+access' &&
+grep -qE 'gcloud[[:space:]].*secrets[[:space:]].*versions[[:space:]]+access' <<< "$scan" &&
   deny "gcloud secrets versions access prints the secret" "$CTX"
-printf '%s' "$scan" | grep -qE 'kubectl[[:space:]].*get[[:space:]]+secrets?[^|]*-o[[:space:]]*(json|yaml)' &&
+grep -qE 'kubectl[[:space:]].*get[[:space:]]+secrets?[^|]*-o[[:space:]]*(json|yaml)' <<< "$scan" &&
   deny "kubectl get secret -o json/yaml exposes base64 values" "$CTX"
 
 # Local dotfiles and raw environment dumps
@@ -116,11 +131,11 @@ printf '%s' "$scan" | grep -qE 'kubectl[[:space:]].*get[[:space:]]+secrets?[^|]*
 # any casing) hold no real values and are the first thing anyone reads on a
 # fresh clone — an external build team does this repeatedly. Excluded by
 # suffix so the real .env / .env.production / .env.local forms still match.
-if printf '%s' "$scan" | grep -qE '(cat|bat|less|more|head|tail|strings|xxd)[[:space:]]+([^|;&]*[[:space:]])?[^[:space:]|;&]*\.env(\.[A-Za-z0-9_.-]+)?([[:space:]]|$)' &&
-   ! printf '%s' "$scan" | grep -qiE '\.env(\.[A-Za-z0-9_.-]*)?\.(example|sample|template|dist)([[:space:]]|$)'; then
+if grep -qE '(cat|bat|less|more|head|tail|strings|xxd)[[:space:]]+([^|;&]*[[:space:]])?[^[:space:]|;&]*\.env(\.[A-Za-z0-9_.-]+)?([[:space:]]|$)' <<< "$scan" &&
+   ! grep -qiE '\.env(\.[A-Za-z0-9_.-]*)?\.(example|sample|template|dist)([[:space:]]|$)' <<< "$scan"; then
   deny "printing a .env file exposes every value in it" "$CTX"
 fi
-printf '%s' "$scan" | grep -qE '(^|[;&|][[:space:]]*)(printenv|env)([[:space:]]*$|[[:space:]]*\|[[:space:]]*(grep|rg|awk|sed|sort|head|tail))' &&
+grep -qE '(^|[;&|][[:space:]]*)(printenv|env)([[:space:]]*$|[[:space:]]*\|[[:space:]]*(grep|rg|awk|sed|sort|head|tail))' <<< "$scan" &&
   deny "printenv/env dumps the whole environment, secrets included" "$CTX"
 
 exit 0

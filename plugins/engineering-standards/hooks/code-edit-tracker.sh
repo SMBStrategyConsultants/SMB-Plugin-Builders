@@ -59,10 +59,26 @@ project_dir="$(printf '%s' "$payload" | jq -r '.cwd // .project_dir // .projectD
 [ -z "$project_dir" ] && project_dir="$PROJECT_DIR"
 tracked=0
 
+# WORK-LOG.md tracking markers (WORK-LOG-PROTOCOL.md), independent of the
+# code-review edits list above and NOT cleared by code-review-gate.sh — a
+# review clear must not erase "did this session touch code" or "was the work
+# log updated", since work-log-reminder.sh needs both to survive to Stop.
+# Touch-file existence only; content doesn't matter, so a truncate-on-clear
+# collision (the review gate's own DIR) is a non-issue — these two live beside
+# edits.$sid but neither gate nor lead ever writes to them.
+mark_code_changed() { mkdir -p "$DIR"; : > "$DIR/codechanged.$sid"; }
+mark_worklog_touched() { mkdir -p "$DIR"; : > "$DIR/worklogged.$sid"; }
+
 record_path() {
     local path="${1:-}"
     [ -z "$path" ] && return 0
     case "$path" in /*) ;; *) path="$project_dir/$path" ;; esac
+
+    # WORK-LOG.md itself, at any depth — checked before the code-extension
+    # filter below, since .md is deliberately excluded from that filter.
+    case "$path" in
+        */WORK-LOG.md|WORK-LOG.md) mark_worklog_touched ;;
+    esac
 
     # Code, by extension. Deliberately NOT matched: .md, .txt, .json, .lock, .csv.
     # Config-as-code (.tf, .yml under .github/workflows) IS code.
@@ -80,6 +96,7 @@ record_path() {
 
     mkdir -p "$DIR"
     printf '%q\n' "$path" >> "$DIR/edits.$sid"
+    mark_code_changed
     tracked=1
 }
 
