@@ -12,12 +12,22 @@ It is **not** part of `smb-skills-marketplace` (the other SMB Strategy Consultan
 
 ## Installing
 
+Run these from your workspace root — `--scope project` scopes to whatever directory the command runs in, not to "the workspace" abstractly. Running it from your home directory (or any other cwd) installs it there instead, applying its hooks to every project on the machine, not just this one. Check with `pwd` first if unsure:
+
 ```
+cd /path/to/your/workspace-root
 claude plugin marketplace add SMBStrategyConsultants/SMB-Plugin-Builders
 claude plugin install engineering-standards@build-team-standards --scope project
 ```
 
-`--scope project` keeps the install local to the current workspace. A hand-written `extraKnownMarketplaces`/`enabledPlugins` block in `.claude/settings.json` alone is **not** enough — it registers the marketplace but does not fetch an external-source plugin, so the hooks never actually load, with no error surfaced. Verified against real Claude Code behavior, not assumed. Restart Claude Code after installing (`/clear` doesn't reload plugin config — it only resets the conversation).
+A hand-written `extraKnownMarketplaces`/`enabledPlugins` block in `.claude/settings.json` alone is **not** enough — it registers the marketplace but does not fetch an external-source plugin, so the hooks never actually load, with no error surfaced. Verified against real Claude Code behavior, not assumed. Restart Claude Code after installing (`/clear` doesn't reload plugin config — it only resets the conversation).
+
+Mis-scoped it already (ran from the wrong directory)? Uninstall and reinstall from the right one:
+```
+claude plugin uninstall engineering-standards@build-team-standards
+cd /path/to/your/workspace-root
+claude plugin install engineering-standards@build-team-standards --scope project
+```
 
 **Add `.agent/tmp/` to your project's own `.gitignore`.** The review-gate and context-nag hooks write session state (an audit log of review clears/waivers, per-session edit tracking) to `<your project>/.agent/tmp/code-review/` — inside the repo you're building, not inside this plugin. Without an ignore rule, `git add -A` picks it up and reviewer verdict text/waiver reasons end up committed.
 
