@@ -1,7 +1,7 @@
 {
   "name": "engineering-standards",
   "description": "Engineering skills + review/context enforcement hooks for build teams working with SMB Strategy Consultants. Companion to the builder-team-core CLAUDE.md workspace overlay — installing this plugin turns REVIEW.md and CONTEXT-WINDOW-CONTROL.md from advisory prose into an enforced Stop-hook gate and a context nag, and keeps the 12 engineering skills auto-updating instead of pinned to whatever was in the zip at download time.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "SMB Strategy Consultants"
   }
