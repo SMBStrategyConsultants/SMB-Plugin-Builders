@@ -1,0 +1,17 @@
+{
+  "name": "build-team-standards",
+  "owner": {
+    "name": "SMB Strategy Consultants"
+  },
+  "plugins": [
+    {
+      "name": "engineering-standards",
+      "source": "./plugins/engineering-standards",
+      "description": "Engineering skills + review/context enforcement hooks for build teams working with SMB Strategy Consultants.",
+      "version": "1.0.0",
+      "author": {
+        "name": "SMB Strategy Consultants"
+      }
+    }
+  ]
+}

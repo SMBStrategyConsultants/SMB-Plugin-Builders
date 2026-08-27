@@ -1,0 +1,71 @@
+{
+  "description": "Engineering-standards enforcement: review-gate (blocks ending a turn until edited code has been reviewed), review-protocol reminder, secret-read guard, and a context-window nag before the harness auto-compacts.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/code-review-reminder.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking code-review protocol..."
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/context-gate.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking context gate..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/context-gate.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking context gate..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/code-edit-tracker.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/secret-read-guard.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/code-review-gate.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking review gate..."
+          }
+        ]
+      }
+    ]
+  }
+}

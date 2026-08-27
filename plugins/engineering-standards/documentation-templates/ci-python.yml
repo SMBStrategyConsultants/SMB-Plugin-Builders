@@ -1,0 +1,59 @@
+# Starter CI — Python (uv)
+# Copy to .github/workflows/ci.yml and adjust paths to match the project layout.
+# Satisfies PA ENGINEERING.md §17.8 (deterministic checks before agent review).
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Typecheck
+        run: uv run mypy .
+        continue-on-error: true
+
+      - name: Test
+        run: uv run pytest -q
+
+      # Dependency audit — advisory, does not block the merge gate.
+      - name: Audit dependencies
+        run: uv run pip-audit
+        continue-on-error: true
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
