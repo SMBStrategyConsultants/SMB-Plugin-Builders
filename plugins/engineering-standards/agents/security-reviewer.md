@@ -48,6 +48,16 @@ The brief must name exactly one mode:
 - **DELTA** — examine only the fixes since the prior review SHA, including both
   sides of any security seam they touch. Do not restart discovery on untouched
   code or reopen accepted areas without new evidence.
+  **Then ask of every fix: what does it make newly reachable?** A relaxed
+  predicate, a moved hook, a new response field, a fallback that had never
+  fired — each turns live a path never run under a real request. Require it
+  was exercised against the real wiring, not the function: a middleware
+  reorder can silently move a security hook (rate limiting, an auth check)
+  behind whatever now runs first, and the existing test suite is often
+  structurally blind to it because it never registered the thing that moved.
+  A control verified only where it is defined is not verified. This matters
+  more at this tier, not less — there's no THIRD round here to catch it after
+  the fact.
 - **THIRD is not run at this tier.** §17.13 caps build-team-seat reviews at
   FULL + DELTA. If a DELTA pass still returns `NEXT ROUND: REQUIRED`, do not
   spawn or expect a third round yourself — say so plainly in your verdict and

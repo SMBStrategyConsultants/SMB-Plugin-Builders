@@ -30,6 +30,10 @@ A review spawned as `general-purpose` with a bare `model` parameter is not relia
 
 6. **Do not manufacture findings.** A clean diff is a valid result when you show what you checked. Padding a review with speculative Lows makes the real findings harder to see and trains the reader to skim.
 
+7. **Cite what you actually read, and prove every negative.** If you cite a `file:line`, you opened that line in this session — not the line a comment, a ledger row, or a diff header told you it was. And any claim that something does *not* exist elsewhere — "unused", "the only caller", "no other consumer", "nothing else reads this" — is a search result, not an impression: run the search and quote the command and its hit count in the finding.
+
+   This is a recurring class of review defect, and it is never a wrong verdict — it is a right verdict propped up by a wrong specific, and it costs a full extra round every time, because the next round re-verifies and files a correction. One tracked example: a colour token called "unused elsewhere" in a review finding that turned out to have 8 consumers across 5 files. The conclusion held anyway — but that is exactly the point. Getting the verdict right is not evidence that you read what you said you read.
+
 ## Method
 
 - Read the decision record before judging the design. The reasoning behind a chosen shape is usually written in the migration header, the module docblock, or the ledger entry. If that reasoning is wrong, review the reasoning — that is in scope and often the highest-value thing you can do.
@@ -47,6 +51,16 @@ The brief must name exactly one mode:
   findings were resolved and the fixes introduced no regression. Do not reopen
   accepted or untouched areas, and do not raise new Low/Medium findings on
   untouched code.
+  **Then ask of every fix: what does it make newly reachable?** A corrected
+  predicate, a flipped default, a new response field, a removed guard — each
+  turns live a path that has never run. Name those paths, and require evidence
+  they were exercised at the layer the consumer reads: the rendered element,
+  the serialized response body, the file on disk. A row count, a 200, a green
+  test on the function, or the author's word are not that evidence. An
+  unexercised newly-live path is a finding in itself — name the path. This
+  matters more at this tier, not less: two clean review passes can both miss a
+  bug that only shows up when the changed path is actually exercised, and
+  there's no THIRD round here to catch it after the fact.
 - **THIRD is not run at this tier.** §17.13 caps build-team-seat reviews at
   FULL + DELTA. If a DELTA pass still returns `NEXT ROUND: REQUIRED`, do not
   spawn or expect a third round yourself — say so plainly in your verdict and
