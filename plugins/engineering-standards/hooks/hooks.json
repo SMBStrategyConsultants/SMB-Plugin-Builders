@@ -1,5 +1,5 @@
 {
-  "description": "Engineering-standards enforcement: review-gate (blocks ending a turn until edited code has been reviewed), work-log reminder, review-protocol reminder, secret-read guard, cloud-destructive-command two-stage gate, and a context-window nag before the harness auto-compacts.",
+  "description": "Engineering-standards enforcement: review-gate (blocks ending a turn until edited code has been reviewed), work-log reminder, Slack-post reminder, review-protocol reminder, secret-read guard, cloud-destructive-command two-stage gate, and a context-window nag before the harness auto-compacts.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -40,6 +40,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/slack-post-tracker.sh\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -75,6 +85,12 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/work-log-reminder.sh\"",
             "timeout": 10,
             "statusMessage": "Checking work-log protocol..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/slack-post-reminder.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking Slack-post protocol..."
           }
         ]
       }
