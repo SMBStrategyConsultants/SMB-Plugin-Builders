@@ -71,17 +71,28 @@
 - GSC-06: added the untrusted-data fence around `$recent` in the emitted `additionalContext`.
 - **Regression-tested** against 4 scenarios in throwaway clones: up-to-date (silent, exit 0), normal-behind + dirty tree (warns, dirty note present, `git pull` clause present — real tracking ref), Case-B pruned-upstream (now warns, previously silent), no-upstream fallback (warns, `git pull` clause now correctly absent). All 4 passed with expected output.
 
+### Delta findings (2026-09-10, code-reviewer subagent, verified via reproductions + controls on both hook versions)
+
+| ID | Sev | Finding | Failure scenario | Decision | Status | Pass |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| GSC-D1 | Medium | GSC-01's fix commit introduced a new false statement: docblock (lines 19-22) and README both said the pruned-tracking-ref case "exits 0 silent" — the opposite of what the same commit's fallback does (it warns via `origin/main`). Same self-contradicting-docblock pattern as SPR-09 above | Builder gets an unexpected `origin/main` warning on a feature branch, checks the docs, is told this case is silent, stops investigating; a future maintainer could "restore" the documented silence and revert GSC-01 | Fix | Resolved | Delta |
+| GSC-D2 (LEDGER) | Low | GSC-04's `GIT_SSH_COMMAND` override wins over a builder's `core.sshCommand` (verified precedence with fake-ssh-binary fixtures) | A builder using a per-repo deploy key via `core.sshCommand`, or with their own working `GIT_SSH_COMMAND`, gets the hook's fetch silently failing auth and the hook permanently silent for that person — fail-open, so nothing breaks loudly, but it's the exact undetectable-silence class the hook exists to prevent | Decline (for now) | Open — follow-up | Delta |
+
+### Fix applied (post-Delta)
+
+- GSC-D1: rewrote the docblock's fail-open list (git-sync-check.sh) and the README bullet — dropped "no upstream configured (including a pushed branch whose tracking ref was since pruned)" from the silent-exit list; added a clause stating that case falls back to `origin/main` and warns from there, going silent only if `origin/main` itself doesn't resolve. Text-only change, verified by inspection against the Delta's own published Case-B output (740-byte warning naming `origin/main`) — per Tier 2 discretion (§17.12.2, no behavioral surface), no fresh Delta spawn.
+
 ### Merge stopping rule (PA ENGINEERING.md §17.6)
 
-- [x] 1. Acceptance criteria: none formal (no spec) — behavior matches the stated docblock intent post-fix, verified by the 4-scenario regression run above
+- [x] 1. Acceptance criteria: none formal (no spec) — behavior matches the stated docblock intent post-fix, verified by the 4+10-scenario regression runs across Full and Delta
 - [x] 2. Deterministic CI checks — N/A, no CI in this repo (permitted, Low risk per header)
-- [x] 3. No unresolved Blocker or High — none found
-- [x] 4. Medium findings fixed or filed as follow-up — GSC-01, GSC-03 fixed; GSC-02 doc half fixed, scope half filed as open follow-up (not a merge blocker per reviewer's own framing — "lead's call")
-- [ ] 5. Critical journeys verified outside the implementing agent's own test assumptions — **pending Delta**, narrowly scoped: re-run reviewer's own Case-B pruned-upstream probe, a pushed-feature-branch probe (for GSC-02 doc accuracy), and confirm compact-source gating (GSC-03) against actual Claude Code hook dispatch behavior, not just docs
-- [x] 6. Final diff understood — single new file + 2-line hooks.json change + 1 README bullet, every behavioral change explained above
-- [ ] 7. One clean Delta pass since the last material change — **not yet run**
+- [x] 3. No unresolved Blocker or High — none found across Full or Delta
+- [x] 4. Medium findings fixed or filed as follow-up — GSC-01, GSC-03, GSC-D1 fixed; GSC-02 doc half fixed, scope half filed as open follow-up (not a blocker, reviewer's own framing)
+- [x] 5. Critical journeys verified outside the implementing agent's own test assumptions — Delta reproduced GSC-01 (Case B + 2 broken-config variants), GSC-02 (silent-on-pushed-feature-branch, with liveness control), GSC-03 (valid matcher confirmed against raw Claude Code hooks docs), GSC-05, plus 6 additional scenarios (detached HEAD, non-git dir, bogus/unset branch.remote, 2 liveness controls) — 10/10 as expected
+- [x] 6. Final diff understood — single new file + 2-line hooks.json change + 1 README bullet + GSC-D1 text-only follow-up, every behavioral change explained above
+- [x] 7. One clean Delta pass since the last material change — Delta ran, found 1 FIX NOW (GSC-D1, text-only) + 1 non-blocking (GSC-D2), GSC-D1 fixed and self-verified per Tier 2 discretion (reviewer's own stated terms: "text-only change with no behavioral surface")
 
-**Verdict**: FULL complete, REQUEST CHANGES → fixed. **Not yet mergeable** — Delta pending (narrow scope per above). GSC-02's scope half (whether to also diff against the default branch) is an open follow-up, not a blocker.
+**Verdict**: APPROVE — mergeable. Full + Delta cycle closed: GSC-01/02/03 (Full) and GSC-D1 (Delta) fixed and verified by reproduction; GSC-04/05/06 (Low, fixed anyway) and GSC-02-scope/GSC-D2 (Low/Medium-scope, declined-for-now) remain as LEDGER follow-ups, none block merge.
 
 ### Fixes applied, round 2 (SPR-08, SPR-09, SPR-10, SPR-11 — post-Delta)
 

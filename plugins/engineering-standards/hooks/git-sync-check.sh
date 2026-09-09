@@ -14,12 +14,15 @@
 # fix). What this DOES catch: a builder still on `main` (or any branch tracking
 # it) whose clone has gone stale — the shape of the incident that motivated it,
 # a builder who missed merged build-plan updates with no signal anything was
-# out of sync.
+# out of sync. It ALSO catches a branch with no resolvable upstream at all
+# (never pushed, or pushed and then had its remote-tracking ref pruned, e.g.
+# after a GitHub "auto-delete head branches" merge) — that case falls back to
+# comparing against `origin/main` and warns from there, it does not go silent.
 #
-# Fail open always: no git repo, no network, no upstream configured (including
-# a pushed branch whose remote-tracking ref was since pruned), missing jq —
-# every one of these exits 0 silent. A sync check that blocks session start on
-# a flaky network is worse than no check.
+# Fail open always: no git repo, no network, no `origin/main` to fall back to
+# when there is no real upstream, missing jq — every one of these exits 0
+# silent. A sync check that blocks session start on a flaky network is worse
+# than no check.
 set -uo pipefail
 
 command -v git >/dev/null 2>&1 || exit 0
