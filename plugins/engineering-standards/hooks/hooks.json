@@ -1,6 +1,18 @@
 {
-  "description": "Engineering-standards enforcement: review-gate (blocks ending a turn until edited code has been reviewed), work-log reminder, Slack-post reminder, review-protocol reminder, secret-read guard, cloud-destructive-command two-stage gate, and a context-window nag before the harness auto-compacts.",
+  "description": "Engineering-standards enforcement: review-gate (blocks ending a turn until edited code has been reviewed), work-log reminder, Slack-post reminder, review-protocol reminder, secret-read guard, cloud-destructive-command two-stage gate, a context-window nag before the harness auto-compacts, and a session-start git-sync check.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/git-sync-check.sh\"",
+            "timeout": 20,
+            "statusMessage": "Checking git sync status..."
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

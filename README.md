@@ -42,6 +42,7 @@ claude plugin install engineering-standards@build-team-standards --scope project
   - `work-log-reminder.sh` — non-blocking Stop-hook nag: if code changed this session but `WORK-LOG.md` wasn't touched, says so before the session ends.
   - `slack-post-tracker.sh` + `slack-post-reminder.sh` (paired, v1.5.0) — same shape as `code-edit-tracker.sh`/`work-log-reminder.sh`: tracks whether `gh pr create` ran this session and whether any Slack MCP tool call ran; if a PR opened and Slack stayed silent, nags at Stop — repeats each Stop until a Slack call happens, same re-fire behavior as `work-log-reminder.sh` below, not a one-shot. Non-blocking — see Known limitations below for what it can't detect.
   - `context-gate.py` — nags before the harness auto-compacts, so open state gets noted first. Same mechanism as `CONTEXT-WINDOW-CONTROL.md` describes, now enforced instead of just documented.
+  - `git-sync-check.sh` (v1.6.0) — `SessionStart` hook. Fetches the current branch's upstream and tells the agent up front if the local checkout is behind — advisory only, never pulls or rebases anything itself. Fail-open: no repo, no network, no upstream, missing `jq` all exit silently rather than block session start.
 - **Documentation templates**, mirrored from `builder-team-core/documentation-templates/`.
 
 ## Versioning
